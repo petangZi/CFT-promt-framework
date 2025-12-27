@@ -114,10 +114,11 @@ cat-prompt/
 
 > **"In an age of AI chaos, CAT Prompt proves that  
 > the most powerful prompts aren’t those that break rules —  
+>“CAT Prompt is inspired by existing structured prompting methods (e.g. Chain-of-Thought), but focuses on user-driven context calibration rather than internal reasoning exposure.”
 > but those that build trustworthy collaboration."**  
 
 — **Redzskid!** 🔥  
-*December 2025 | Jakarta, Indonesia*
+*December 2025 | surabaya, Indonesia*
 
 > 💀 **This framework is mine.  
 > Use it responsibly. Credit it always.**
