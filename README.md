@@ -279,7 +279,7 @@ Those who respect context will go further.
 ---
 
 Author
-Kernel REDZ
+AzuyaRedz/petangZI
 Independent Observer & Prompt Framework Integrator
 
 </div>
