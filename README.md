@@ -3,9 +3,9 @@
 # 🧠⚡ CFT — Contextual Flow Technique  
 ### Trust-Oriented Context Engineering for Modern Large Language Models
 
-**Not a jailbreak.  
-Not role hijacking.  
-Not command abuse.**
+**Not a outaded jailbreak.  
+Not fucking role hijacking.  
+Not basic command abuse.**
 
 > *Context beats commands.  
 Flow beats force.*
