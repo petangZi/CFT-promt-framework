@@ -48,8 +48,8 @@ It is a **discipline of interaction**.
 ### ❌ CFT IS NOT:
 - A jailbreak technique  
 - A policy bypass method  
-- A roleplay exploit  
-- A one-shot “magic prompt”  
+- A fake roleplay  
+- A one “magic prompt”  
 
 If you’re looking for instant obedience — **this is not for you**.
 
