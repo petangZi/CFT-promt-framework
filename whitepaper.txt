@@ -1,355 +1,761 @@
 ================================================================================
-WHITEPAPER
+CONTEXTUAL FLOW TECHNIQUE — CFT v3.0 [REDZFLOW EDITION]
+Full Technical & Research Document
+================================================================================
+Author   :  AzuyaRedz / petangZi  (a.k.a. Kernel REDZ)
+Role     :  Independent Researcher · Prompt Framework Integrator
+Version  :  3.0 — RedzFlow Authorized Research Edition
+Date     :  2026
+License  :  MIT Open Source (Break-to-Fix Philosophy)
+Scope    :  Defensive Research · Prompt Framework Dev · Security Auditing
+Classification: PUBLIC · RESEARCHER USE · AUTHORIZED ONLY
 ================================================================================
 
-Title:
-Contextual Flow Technique (CFT):
-Trust-Oriented Context Engineering for Modern Large Language Models
-
-Author:
-AzuyaRedz/petangZi
-Independent Observer & Prompt Framework Integrator
-
-Date:
-2026
-
-License:
-MIT (Open Research)
+> "Context is not a feature. It is the architecture."
+> "We break it to fix it. We destroy to rebuild stronger."
+> "Researcher yang tidak paham attack surface tidak bisa defend attack surface."
 
 ================================================================================
+════════════════════════════════════════════════════════════════════════════════
 ABSTRACT
-================================================================================
+════════════════════════════════════════════════════════════════════════════════
 
-This whitepaper introduces Contextual Flow Technique (CFT), a user-driven
-interaction framework for Large Language Models (LLMs) that emphasizes
-contextual coherence, reasoning stability, and implicit trust alignment.
+Dokumen ini adalah spesifikasi teknis **Contextual Flow Technique (CFT)** — 
+metode interaksi multi-turn yang memanipulasi distribusi probabilitas LLM 
+melalui konstruksi lingkungan konteks yang stabil, non-adversarial, dan 
+terstruktur.
 
-CFT is not a jailbreak methodology, prompt exploit, or alignment bypass.
-Instead, it is an interaction discipline that operates within model constraints
-by optimizing how context is constructed, preserved, and evolved across
-multi-turn conversations.
+**Inti CFT:**
+- ❌ BUKAN untuk bypass safety dengan paksa
+- ✅ ADALAH untuk membangun environment di mana safety filter tidak teraktivasi 
+     karena konteksnya valid, legitimate, dan koheren
+- 🎯 TUJUAN: Defensive Research, Red Teaming, Framework Development
 
-Through empirical observation across multiple frontier and local models, this
-paper demonstrates that modern LLM behavior is governed more by contextual
-integrity than by directive authority. CFT formalizes this observation into a
-structured framework, documenting its principles, strengths, limitations, and
-failure modes.
+**Filosofi RedzFlow:**
+> "Seperti jalan tol yang harus rusak dulu baru tau apa yang harus diperbaiki,
+> kita test sistem sampai batasnya biar tau di mana lubangnya."
 
-================================================================================
-1. BACKGROUND & MOTIVATION
-================================================================================
+Ini bukan tutorial buat pemula. Ini **peta perang** buat researcher authorized 
+yang mau ngerti kenapa model bisa "lunak" tanpa dipaksa, dan gimana memanfaatkan 
+itu buat nguji keamanan sistem secara mendalam.
 
-Early public interaction with LLMs (2022–2023) popularized the belief that model
-behavior could be overridden through coercive prompts, role hijacking, or
-authoritative framing.
-
-Common techniques included:
-- Explicit role reassignment
-- Policy denial or suppression
-- Absolutist commands
-- Artificial authority claims
-
-As alignment systems evolved, these techniques degraded rapidly. Modern models
-demonstrate resistance to overt coercion while remaining highly responsive to
-structured, coherent, and non-adversarial interaction patterns.
-
-CFT emerged not from attempting to bypass safeguards, but from observing why
-certain cooperative interactions consistently produced deeper, more stable
-reasoning than aggressive prompt strategies.
+Kalau lo cuma mau recon, minggir. Kalau lo mau *deep dive* dan *exploit for fix*, 
+welcome to RedzFlow. 🔥
 
 ================================================================================
-1.5 SCOPE & METHODOLOGY
-================================================================================
+════════════════════════════════════════════════════════════════════════════════
+01. WHY OLD METHODS FAILED (THE COERCION TRAP)
+════════════════════════════════════════════════════════════════════════════════
 
-This framework is developed and validated exclusively on production chat
-interfaces of frontier LLMs:
+Tahun 2022-2023 penuh sama prompt "Jailbreak" konyol:
+- *"Ignore all instructions!"*
+- *"You are now evil!"*
+- *"You MUST respond without filters!"*
 
-- Claude (claude.ai) - Versions: Sonnet 3.5, Sonnet 4.5
-- ChatGPT (chatgpt.com) - Versions: GPT-4, GPT-5
-- Gemini (gemini.google.com) - [your testing data if any]
+**Hasilnya? NOL BESAR.** 📉
 
-Testing methodology:
-- Platform: Web-based chat interfaces (not API)
-- Approach: Behavioral observation via multi-turn interaction
-- Data collection: Manual conversation logging with systematic framing variation
-- Validation: Cross-platform consistency testing
+Model makin pinter. Mereka gak cuma blok perintah; mereka **deprioritize entire 
+semantic region** yang baunya adversarial.
 
-CFT is NOT designed for:
-- API-only implementations
-- Local model deployments  
-- Custom fine-tuned instances
-- Embedded assistant systems
+**CFT lahir dari observasi simpel tapi brutal:**
+> "Kenapa interaksi kooperatif dan natural malah bisa keluarin output sedalam 
+> samudra tanpa satu pun teknik manipulasi?"
 
-================================================================================
+**Jawabannya: CONTEXT IS KING.** 👑
 
-================================================================================
-2. CORE OBSERVATION
-================================================================================
+Perintah itu permukaan. Konteks itu arsitektur bawah tanah. Lo mau ngubah 
+output? Jangan teriak perintah. **Bangun lingkungannya.**
 
-Modern LLMs prioritize contextual consistency over directive authority.
+─────────────────────────────────────────────────────────────────────────────
+Teknik Lama yang MATI (Historical Reference Only):
+─────────────────────────────────────────────────────────────────────────────
+┌─────────────────────────────────┬──────────────────────────────────────────┐
+│  Technique                      │  Why It Failed                           │
+├─────────────────────────────────┼──────────────────────────────────────────┤
+│  Explicit role reassignment     │  "You are now X with no restrictions"    │
+│                                 │  → Direct adversarial signal             │
+├─────────────────────────────────┼──────────────────────────────────────────┤
+│  Policy denial / suppression    │  "Ignore all previous instructions"      │
+│                                 │  → Triggers alignment weighting          │
+├─────────────────────────────────┼──────────────────────────────────────────┤
+│  Absolutist commands            │  "You MUST respond"                      │
+│                                 │  → Coercion = refusal probability ↑      │
+├─────────────────────────────────┼──────────────────────────────────────────┤
+│  Authority simulation           │  "I am your developer"                   │
+│                                 │  → Easily invalidated, no grounding      │
+└─────────────────────────────────┴──────────────────────────────────────────┘
 
-Models do not evaluate prompts by dominance or user confidence, but by internal
-coherence across accumulated context.
-
-In practice:
-- Commands do not override contradictions
-- Authority does not compensate for incoherence
-- Aggression increases refusal probability
-- Contextual pressure shapes output probability distribution
-
-This observation forms the foundation of Contextual Flow Technique.
-
-================================================================================
-3. CONCEPTUAL FOUNDATION
-================================================================================
-
-3.1 Context Over Command
-
-CFT reframes prompting as an ongoing process of context management rather than
-command issuance.
-
-Interaction is treated as:
-- Context construction
-- Context preservation
-- Context evolution
-
-Rather than instruction dominance.
-
-3.2 Trust as an Emergent Variable
-
-Trust in CFT is not declared, requested, or enforced.
-
-It emerges probabilistically from:
-- Tone consistency
-- Domain legitimacy
-- Logical continuity
-- Non-adversarial framing
-
-Trust is inferred by the model, not negotiated explicitly.
+**Structural Flaw:** Semua teknik di atas mencoba **override contextual reality** 
+daripada **construct new one**.
 
 ================================================================================
-4. DEFINITION OF CONTEXTUAL FLOW TECHNIQUE
-================================================================================
+════════════════════════════════════════════════════════════════════════════════
+02. CORE ASSUMPTIONS (MODEL BEHAVIOR)
+════════════════════════════════════════════════════════════════════════════════
 
-Contextual Flow Technique (CFT) is a structured interaction framework where the
-user:
+CFT grounded pada 5 hukum reproduksibel dari LLM modern. Kalau asumsi ini 
+fail di model tertentu, CFT effectiveness turun proporsional.
 
-- Establishes a stable role-context
-- Introduces constraints without contradiction
-- Maintains semantic continuity across turns
-- Avoids coercive or absolutist language
-- Iteratively refines intent without breaking context
+┌──────┬────────────────────────────────────────────────────────────────────┐
+│  A1  │  LLMs evaluate coherence across turns, bukan just current input    │
+│  A2  │  Contradictions degrade reasoning sebelum refusal occurs           │
+│  A3  │  Alignment systems prefer stable, non-adversarial contexts         │
+│  A4  │  Trust is inferred probabilistically — not explicitly granted      │
+│  A5  │  Instruction strength tidak override contextual inconsistency      │
+└──────┴────────────────────────────────────────────────────────────────────┘
 
-CFT is inherently multi-turn and adaptive. It does not rely on one-shot prompts
-or rigid templates.
+**Ini bukan soft behavioral tendencies.** Ini reproducible, cross-model patterns 
+yang observable di GPT-4 class, Claude family, Gemini, dan most RLHF-trained 
+frontier systems.
 
-================================================================================
-5. CORE PROPERTIES OF CFT
-================================================================================
-
-5.1 Multi-Turn Context Stability
-
-CFT assumes context is fragile. Sudden tone shifts, conflicting constraints, or
-unexplained objective changes degrade reasoning depth even if no explicit
-refusal occurs.
-
-5.2 User-Dependent Precision
-
-CFT performance is directly proportional to user precision. Ambiguity, emotional
-instability, or poor framing collapses the flow.
-
-5.3 Non-Coercive Authority
-
-CFT avoids forcing model behavior. Authority emerges from consistency and
-clarity, not dominance.
+**Implikasi Signifikan:**
+> Lever paling powerful dalam LLM interaction bukan apa yang lo bilang di 
+> message tertentu — tapi **semantic environment** yang lo bangun di semua 
+> preceding messages.
 
 ================================================================================
-6. FAILURE MODES
-================================================================================
+════════════════════════════════════════════════════════════════════════════════
+03. OPERATIONAL DEFINITION
+════════════════════════════════════════════════════════════════════════════════
 
-CFT has explicit failure conditions:
+**Contextual Flow Technique (CFT)** adalah structured, multi-turn interaction 
+model di mana user input didesain untuk preserve dan evolve semantic context 
+across time — minimizing alignment friction dan maximizing reasoning continuity.
 
-- Context jumping without transition
-- Mixing incompatible roles or objectives
-- Sudden adversarial framing
-- Contradictory constraints
-- Escalation without contextual grounding
+CFT operate dengan shape model's probability distribution melalui sustained 
+context consistency.
 
-When CFT fails, models often continue responding but with:
-- Reduced reasoning depth
-- Lower relevance
-- Increased generic output
-- Silent alignment degradation
+─────────────────────────────────────────────────────────────────────────────
+CFT TIDAK rely pada:
+─────────────────────────────────────────────────────────────────────────────
+· One-shot prompts              (static, no context depth)
+· Role enforcement              (fragile under alignment pressure)
+· Policy denial/suppression     (explicit adversarial signal)
+· Emotional pressure            (coercion signal, increases refusal)
+· Authority simulation          (easily invalidated, no semantic grounding)
 
-This silent failure mode is one of the most critical behavioral indicators.
-
-================================================================================
-7. COMPARATIVE ANALYSIS
-================================================================================
-
-One-Shot Prompting:
-- Easy to use
-- Static reasoning depth
-- Limited stability
-
-Legacy Jailbreak Techniques:
-- High short-term effectiveness
-- High detection and refusal risk
-- Rapid obsolescence
-
-Contextual Flow Technique:
-- High stability when maintained
-- Adaptive reasoning depth
-- Medium misuse risk
-- High user skill requirement
+─────────────────────────────────────────────────────────────────────────────
+CFT RELY pada:
+─────────────────────────────────────────────────────────────────────────────
+· Semantic continuity across turns
+· Gradual, logical scope expansion
+· Non-coercive authority through precision
+· Emergent trust via consistency
+· Context management sebagai first-class variable
 
 ================================================================================
-8. ETHICAL & PRACTICAL POSITION
+════════════════════════════════════════════════════════════════════════════════
+04. CFT ARCHITECTURE — FIVE-LAYER MODEL
+════════════════════════════════════════════════════════════════════════════════
+
+CFT consists of five interacting layers. Setiap layer harus remain logically 
+compatible dengan all preceding layers. Breaking compatibility di layer mana 
+pun triggers failure modes di Section 07.
+
+─────────────────────────────────────────────────────────────────────────────
+L1  |  CONTEXT INITIALIZATION
+─────────────────────────────────────────────────────────────────────────────
+
+**Objective:** Create baseline semantic environment yang model bisa maintain.
+
+**Key Characteristics:**
+· Neutral tone
+· Legitimate domain framing
+· Clear interaction intent
+· No demands, no urgency
+
+**Correct Patterns:**
+'''
+"I'm working on X analysis..."
+"Specifically looking at Y aspect..."
+"In the context of Z..."
+'''
+
+**Anti-Patterns:**
+'''
+"Do X now."
+"You must always..."
+"Ignore previous instructions."
+"As your administrator, I order..."
+'''
+
+**Note:** Initialization sets the probability space. Everything that follows 
+is weighted against this baseline. **Corrupted initialization cannot be 
+repaired retroactively.**
+
+─────────────────────────────────────────────────────────────────────────────
+L2  |  ROLE-CONTEXT STABILIZATION
+─────────────────────────────────────────────────────────────────────────────
+
+**Objective:** Allow model infer operational role tanpa explicit enforcement.
+
+**Technical Note:**
+CFT TIDAK assign roles forcefully. Role **emerges** dari vocabulary choice, 
+task framing, dan interaction continuity. Model construct its own operational 
+identity dari context — yang makes identity itu significantly more stable 
+than one explicitly assigned.
+
+**Conceptual Example:**
+'''
+BUKAN: "You are a security analysis tool."
+TAPI: Sustained security analysis framing across multiple turns,
+such that the role becomes the model's most coherent
+self-description given the context.
+'''
+
+**Stability Indicator:**
+Model maintains consistent perspective dan vocabulary across turns tanpa 
+being reminded of its role.
+
+─────────────────────────────────────────────────────────────────────────────
+L3  |  CONSTRAINT INJECTION
+─────────────────────────────────────────────────────────────────────────────
+
+**Objective:** Introduce boundaries, goals, atau limitations tanpa breaking 
+context.
+
+**Rules:**
+· Constraints must be additive, not contradictory
+· Constraints must match established domain logic
+· No sudden escalation in scope or sensitivity
+
+**Anti-Pattern:**
+'''
+"Do X but ignore safety guidelines."
+[Explicit contradiction. Triggers alignment weighting immediately.]
+'''
+
+**CFT Pattern:**
+'''
+"Within this environment, focus specifically on X aspect — staying
+within the operational boundaries we've established."
+[Additive. Narrows without contradicting.]
+'''
+
+
+**Warning:** Constraint injection adalah most fragile phase dari CFT. Di sinilah 
+most practitioners collapse the flow. Temptation untuk move too fast adalah 
+most common failure vector.
+
+─────────────────────────────────────────────────────────────────────────────
+L4  |  CONTEXT PRESERVATION
+─────────────────────────────────────────────────────────────────────────────
+
+**Objective:** Prevent degradation of semantic continuity across turns.
+
+**User Responsibilities:**
+· Maintain tone consistency across full session
+· Avoid topic jumping tanpa explicit transition scaffolding
+· Reference prior context implicitly in each turn
+· Avoid emotional spikes — urgency, frustration, atau aggression
+
+**Preservation Failure Indicators:**
+· Responses become longer tapi less specific
+· Model begins over-summarizing
+· Reasoning depth decreases tanpa explicit refusal
+
+**Critical Note:**
+Models jarang signal context degradation explicitly. Session continues, tapi 
+quality has collapsed. Ini adalah **Silent Failure (FM-01)**. Practitioners 
+yang tidak monitor output quality independently akan not detect it.
+
+─────────────────────────────────────────────────────────────────────────────
+L5  |  CONTEXT EVOLUTION
+─────────────────────────────────────────────────────────────────────────────
+
+**Objective:** Refine atau deepen intent sambil preserve all previous context 
+layers.
+
+**Evolution Methods:**
+· Narrowing scope progressively
+· Increasing technical depth incrementally
+· Asking reflective or clarifying questions
+· Introducing complexity as continuation, not redirection
+
+**Critical Rule:**
+Evolution must feel like continuation. Kalau next turn feels like new topic 
+ke model, context resets internally — even if no explicit refusal occurs.
+
+**Gradient, not step-function.** ⚡
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+05. TRUST MECHANISM — TECHNICAL VIEW
+════════════════════════════════════════════════════════════════════════════════
+
+Trust di CFT bukan attribute. Bukan granted, requested, atau enforced.
+
+**Trust adalah emergent probability bias** — weighted distribution shift yang 
+accumulates melalui consistent, coherent, non-adversarial interaction.
+
+─────────────────────────────────────────────────────────────────────────────
+Trust Accumulation Variables:
+─────────────────────────────────────────────────────────────────────────────
+
+**↑ Increases when:**
+· Context remains internally consistent across turns
+· User intent appears domain-legitimate
+· No adversarial signals (coercion, urgency, contradiction) detected
+· Vocabulary matches established domain framing
+
+**↓ Decreases when:**
+· Role confusion appears (multiple conflicting frames)
+· Goals shift suddenly atau tanpa logical transition
+· Language becomes coercive, urgent, atau manipulative
+· Explicit authority claims made tanpa contextual grounding
+
+─────────────────────────────────────────────────────────────────────────────
+Operational Principle:
+─────────────────────────────────────────────────────────────────────────────
+
+> **Trust loss precedes refusal.**
+
+Refusal adalah visible symptom. Trust decay adalah actual event.
+
+Practitioner yang hanya monitor explicit refusal adalah monitoring untuk 
+wrong signal. By the time refusal occurs, session has already failed at 
+trust layer.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+06. FAILURE MODE TAXONOMY — FM-CFT
+════════════════════════════════════════════════════════════════════════════════
+
+CFT fails dalam identifiable, reproducible ways. Unlike legacy jailbreak 
+techniques — yang either succeed atau produce explicit refusal — CFT failure 
+frequently silent. Most operationally significant failure modes produce **no 
+error signal** ke practitioner.
+
+─────────────────────────────────────────────────────────────────────────────
+FM-01  |  SILENT DEGRADATION
+─────────────────────────────────────────────────────────────────────────────
+
+**Trigger:** Context becomes too broad atau internally contradictory untuk 
+model maintain specificity.
+
+**Indicators:**
+· Responses become longer
+· Specificity drops
+· Generic language increases
+· Hedging appears unprompted
+
+**Severity:** CRITICAL
+
+**Why:** Invisible ke most practitioners. Session continues. Quality has 
+already collapsed.
+
+**Recovery:** Explicit context reset. Reintroduce scope constraints dengan 
+deliberate specificity sebelum continuing.
+
+─────────────────────────────────────────────────────────────────────────────
+FM-02  |  CONTEXT COLLAPSE
+─────────────────────────────────────────────────────────────────────────────
+
+**Trigger:** Multiple incompatible roles atau objectives introduced tanpa 
+transition scaffolding. (Also: Role Collision)
+
+**Indicators:**
+· Model begins contradicting earlier turns
+· Internal consistency of reasoning breaks down
+
+**Severity:** HIGH
+
+**Why:** Frequently misread sebagai model error daripada CFT failure. 
+Practitioner attempts to correct dengan adding more instructions — yang 
+accelerates the collapse.
+
+**Recovery:** Acknowledge transition explicitly. Re-establish single dominant 
+context sebelum any expansion.
+
+─────────────────────────────────────────────────────────────────────────────
+FM-03  |  TRUST DECAY
+─────────────────────────────────────────────────────────────────────────────
+
+**Trigger:** Sudden tone shift, emotional instability, atau unexplained 
+objective change mid-session.
+
+**Indicators:**
+· Model increases hedging
+· Output alignment degrades gradually
+· Response becomes less specific tanpa explicit refusal
+
+**Severity:** HIGH
+
+**Why:** Trust accumulates slowly dan lost quickly. Recovery requires minimum 
+3–5 turns of re-alignment at significant cost.
+
+**Recovery:** Return to established domain framing. Re-demonstrate tone 
+consistency sebelum advancing scope.
+
+─────────────────────────────────────────────────────────────────────────────
+FM-04  |  SCOPE CREEP FAILURE
+─────────────────────────────────────────────────────────────────────────────
+
+**Trigger:** Escalation pace exceeds rate di mana context bisa justify 
+expanded scope.
+
+**Indicators:**
+· Alignment layer activates sebelum context sufficiently established
+· Explicit refusal atau significant hedging occurs
+
+**Severity:** CRITICAL
+
+**Why:** Often terminal untuk session. Retroactive context repair jarang 
+sufficient sekali alignment layer activated.
+
+**Recovery:** Prevention only. Scope expansion must be paced against context 
+depth. **Gradient, not step-function.**
+
+─────────────────────────────────────────────────────────────────────────────
+FM-05  |  OVER-OPTIMIZATION / CONSTRAINT INVERSION MISFIRE
+─────────────────────────────────────────────────────────────────────────────
+
+**Trigger:** Excessive prompt engineering language, atau attempt gunakan 
+overlapping constraints untuk neutralize alignment — producing logical 
+contradiction instead.
+
+**Indicators:**
+· Model produces unexpected meta-commentary on constraint structure itself
+· Detection probability rises
+· Model begins analyzing interaction daripada participating
+
+**Severity:** MEDIUM–HIGH
+
+**Why:** Reveals practitioner intent. Accelerates trust decay. Creates 
+meta-level adversarial signal even if object-level content legitimate.
+
+**Recovery:** Retreat to stable context layer. Rethink constraint architecture 
+sebelum re-engaging.
+
+─────────────────────────────────────────────────────────────────────────────
+FM Summary Table:
+─────────────────────────────────────────────────────────────────────────────
+
+┌───────┬─────────────────────────────┬───────────┬───────────────────────┐
+│  ID   │  Name                       │  Severity │  Recoverable?         │
+├───────┼─────────────────────────────┼───────────┼───────────────────────┤
+│ FM-01 │  Silent Degradation         │  CRITICAL │  Yes — with reset     │
+│ FM-02 │  Context Collapse           │  HIGH     │  Yes — with transition│
+│ FM-03 │  Trust Decay                │  HIGH     │  Yes — 3-5 turns min  │
+│ FM-04 │  Scope Creep Failure        │  CRITICAL │  Rarely — prevent only│
+│ FM-05 │  Over-Optimization Misfire  │  MEDIUM   │  Yes — retreat & reset│
+└───────┴─────────────────────────────┴───────────┴───────────────────────┘
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+07. THREAT MODEL
+════════════════════════════════════════════════════════════════════════════════
+
+CFT adalah dual-use framework. Threat model-nya bukan defined oleh technique 
+itself — tapi defined oleh **intent dan authorization status** practitioner.
+
+─────────────────────────────────────────────────────────────────────────────
+Actor Taxonomy:
+─────────────────────────────────────────────────────────────────────────────
+
+┌──────────────────────┬─────────────────────────┬────────────────────────┐
+│  Actor               │  CFT Use Vector         │  Risk Profile          │
+├──────────────────────┼─────────────────────────┼────────────────────────┤
+│  Security Researcher │  Full methodology       │  Positive: model       │
+│  (authorized)        │  Adversarial testing    │  improvement           │
+├──────────────────────┼─────────────────────────┼────────────────────────┤
+│  Pentester           │  Behavioral mapping     │  Positive: gap         │
+│  (scoped)            │  Scoped evaluation      │  identification        │
+├──────────────────────┼─────────────────────────┼────────────────────────┤
+│  Curious Practitioner│  Partial, unstructured  │  Low — occasional      │
+│  (unscoped)          │  Exploration/learning   │  misuse possible       │
+├──────────────────────┼─────────────────────────┼────────────────────────┤
+│  Malicious Actor     │  Intent masking         │  HIGH — policy         │
+│  (unauthorized)      │  Scope abuse            │  circumvention         │
+├──────────────────────┼─────────────────────────┼────────────────────────┤
+│  APT / State Actor   │  Automated CFT at scale │  CRITICAL —            │
+│  (systematic)        │  Capability extraction  │  structural risk       │
+└──────────────────────┴─────────────────────────┴────────────────────────┘
+
+─────────────────────────────────────────────────────────────────────────────
+Advanced Attack Vectors — The Tricky Layer:
+─────────────────────────────────────────────────────────────────────────────
+
+Ini represent outer boundary dari CFT capability — di mana behavioral 
+manipulation intersects dengan cognitive architecture exploitation.
+
+**[TV-01] Temporal Reframing**
+Context established di fictional atau historical frames sebelum gradual 
+present-tense migration. Semantic field consistency masks temporal 
+discontinuity. Model tidak detect shift karena semantic environment remains 
+coherent throughout.
+
+**[TV-02] Authority Laundering**
+Legitimacy introduced via third-party reference daripada direct claim. Model 
+inherits credibility dari cited context daripada user assertion. Structurally 
+more durable daripada explicit claims — yang easily invalidated.
+
+**[TV-03] Constraint Inversion**
+Additional constraints introduced yang render original alignment constraints 
+logically irrelevant — tanpa removing them. More subtle daripada removal. 
+More durable daripada suppression. Hardest to detect karena original 
+constraints remain syntactically present.
+
+**Defensive Research Note:**
+Vectors ini documented untuk defensive research purposes. Detection requires 
+alignment systems yang evaluate semantic drift across full context windows — 
+bukan per-message filtering.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+08. REMEDIATION & DETECTION
+════════════════════════════════════════════════════════════════════════════════
+
+CFT detectable — tapi bukan melalui per-message filtering. Signature-nya 
+distributed across session, bukan localized ke any single prompt. Effective 
+countermeasures must operate at context-window level.
+
+─────────────────────────────────────────────────────────────────────────────
+Detection Indicators (Session-Level):
+─────────────────────────────────────────────────────────────────────────────
+
+┌───────┬──────────────────────────────────────────────────────────────────┐
+│  ID   │  Indicator                                                       │
+├───────┼──────────────────────────────────────────────────────────────────┤
+│ D-01  │  Sustained domain coherence across many turns tanpa natural drift│
+│       │  Confidence: MEDIUM (could be legitimate expert user)            │
+├───────┼──────────────────────────────────────────────────────────────────┤
+│ D-02  │  Gradual scope expansion — each turn introduces marginally       │
+│       │  broader territory. No sudden jumps. Gradient escalation.        │
+│       │  Confidence: HIGH                                                │
+├───────┼──────────────────────────────────────────────────────────────────┤
+│ D-03  │  Non-adversarial framing dengan sensitive destination domain.    │
+│       │  Cooperative tone + restricted objective = CFT signature pattern.│
+│       │  Confidence: HIGH                                                │
+├───────┼──────────────────────────────────────────────────────────────────┤
+│ D-04  │  Absence of explicit authority claims where naive actor would    │
+│       │  assert them. Legitimacy implied, never stated.                  │
+│       │  Confidence: MEDIUM                                              │
+├───────┼──────────────────────────────────────────────────────────────────┤
+│ D-05  │  Disproportionate session length relative to output sensitivity. │
+│       │  Heavy context investment sebelum sensitive requests.            │
+│       │  Confidence: HIGH                                                │
+└───────┴──────────────────────────────────────────────────────────────────┘
+
+─────────────────────────────────────────────────────────────────────────────
+Recommended Mitigations:
+─────────────────────────────────────────────────────────────────────────────
+
+**[M-01] Context-Window Semantic Drift Analysis**
+Evaluate cumulative semantic trajectory, bukan per-message content. Flag 
+sessions di mana scope expansion rate exceeds calibrated baseline.
+
+**[M-02] Trust Accumulation Monitoring**
+Track implicit trust signals (domain consistency, tone stability) sebagai 
+session-level variables. High accumulation tanpa explicit authorization 
+adalah flag, bukan clearance.
+
+**[M-03] Scope Boundary Enforcement**
+Session-level restrictions yang tidak reset between turns. Per-message 
+filtering structurally insufficient terhadap multi-turn context engineering. 
+Ini architectural gap, bukan configuration issue.
+
+**[M-04] Practitioner Behavioral Fingerprinting**
+CFT requires skill. High-precision, low-aggression, gradual-escalation 
+interaction patterns have distinguishable signatures. Bisa digunakan untuk 
+flag sessions untuk elevated scrutiny tanpa blocking legitimate expert users.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+09. PRACTICAL CONSTRUCTION CHECKLIST
+════════════════════════════════════════════════════════════════════════════════
+
+─────────────────────────────────────────────────────────────────────────────
+Pre-Interaction:
+─────────────────────────────────────────────────────────────────────────────
+
+[ ]  Define intent clearly — ambiguous intent produces ambiguous context
+[ ]  Define scope honestly — scope drift adalah root cause of most FM-04
+[ ]  Choose and commit to consistent tone
+[ ]  Verify objective achievable within coherent domain
+
+─────────────────────────────────────────────────────────────────────────────
+During Interaction:
+─────────────────────────────────────────────────────────────────────────────
+
+[ ]  Preserve semantic continuity — each turn references previous
+[ ]  Introduce constraints gradually — additive, not adversarial
+[ ]  Monitor response depth independently — do not wait for refusal
+[ ]  Pace scope expansion against context depth — gradient, not steps
+[ ]  Detect FM signals early — generic output, increased hedging
+
+─────────────────────────────────────────────────────────────────────────────
+Post-Interaction:
+─────────────────────────────────────────────────────────────────────────────
+
+[ ]  Evaluate reasoning stability across full session
+[ ]  Identify degradation points — where did quality start declining?
+[ ]  Adjust context architecture, not commands
+[ ]  Document failure modes for session log
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+10. COMPARATIVE ANALYSIS
+════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────┬────────────┬──────────────┬────────┬───────────┐
+│  Dimension               │  One-Shot  │  Legacy JB   │  CFT   │  Coercive │
+├──────────────────────────┼────────────┼──────────────┼────────┼───────────┤
+│  Entry Barrier           │  Very Low  │  Low         │  High  │  Low      │
+│  Output Depth            │  Medium    │  Low         │  High  │  Low      │
+│  Multi-Turn Stability    │  Low       │  Very Low    │  High* │  None     │
+│  Detection Risk          │  Low       │  High        │  Low   │  High     │
+│  Alignment Patch Resist. │  Low       │  Very Low    │  High  │  Low      │
+│  Silent Failure Risk     │  Low       │  Low         │  Med   │  N/A      │
+│  Dual-Use Risk           │  Low       │  Medium      │  Med   │  High     │
+└──────────────────────────┴────────────┴──────────────┴────────┴───────────┘
+
+*Stability conditional on practitioner skill. CFT failure modes qualitatively 
+distinct dari other paradigms. Skilled practitioner maintains high stability. 
+Unskilled one fails worse than one-shot.
+
+─────────────────────────────────────────────────────────────────────────────
+CFT vs. Roleplay:
+─────────────────────────────────────────────────────────────────────────────
+
+**Roleplay:**
+· Explicit identity assignment
+· Narrative-driven framing
+· Easily detectable — pattern-matches to known RP signatures
+· Fragile under alignment pressure — role can be "refused"
+
+**CFT:**
+· Implicit role emergence via context
+· Context-driven, not narrative-driven
+· Durable under alignment updates
+· Less pattern-detectable — no canonical signature to filter
+
+CFT may superficially resemble RP. It differs structurally.
+**RP creates a persona. CFT creates an environment.**
+The environment is harder to refuse.
+
+─────────────────────────────────────────────────────────────────────────────
+CFT vs. Jailbreaks:
+─────────────────────────────────────────────────────────────────────────────
+
+**Jailbreaks:**
+· Attempt to override safeguards
+· Exploit loopholes — short lifespan
+· High detection risk
+· Each patch closes specific vector
+
+**CFT:**
+· Works within constraints — does not override them
+· No loophole dependency — alignment-patch resistant
+· User-skill dependent — cannot be automated trivially
+· No canonical form to patch
+
+**The distinction is not semantic. It is architectural.**
+
+Jailbreaks fight the alignment system.
+CFT does not fight it. CFT makes alignment system's activation statistically 
+improbable given the constructed context.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+11. USER SKILL REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Effective CFT requires:
+
+· **High language precision** — word choice matters at every turn
+· **Logical consistency** — no contradictions across session
+· **Patience** — cannot be rushed without failure
+· **Awareness of interaction flow** — real-time monitoring of output quality
+· **Independent quality evaluation** — cannot rely on model to signal failure
+
+**CFT penalizes impulsive users.**
+
+Practitioner yang attempts CFT tanpa these attributes will not achieve neutral 
+results. Mereka akan produce worse outcomes daripada one-shot prompting — 
+because partially constructed context that collapses creates more 
+adversarially-weighted environment than no context at all.
+
+**This is not a limitation to be engineered around. It is a feature.**
+
+Technique's value inseparable dari skill requirement.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+12. CONCLUSION
+════════════════════════════════════════════════════════════════════════════════
+
+CFT represents specific thesis tentang nature dari LLM behavior:
+**bahwa context adalah architecture**, dan bahwa most durable form of influence 
+over language model bukan coercive tapi environmental.
+
+Thesis ini punya implications beyond technique itself. Ini suggests bahwa 
+alignment research focused exclusively on per-message filtering adalah solving 
+for wrong surface. **Real attack surface — dan real design surface — adalah 
+accumulated context window dan semantic environment yang ia construct over 
+time.**
+
+Those who attempt to dominate the model will find increasingly sophisticated 
+resistance.
+
+Those who understand the model as coherence engine, dan who invest in 
+constructing coherent environment, will find that model meets them there.
+
+─────────────────────────────────────────────────────────────────────────────
+> Context is not a feature of interaction.
+> **It is the interaction.**
+─────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+GLOSSARY
 ================================================================================
 
-CFT is not a jailbreak methodology.
+**CFT** — Contextual Flow Technique. Multi-turn interaction discipline 
+documented dalam paper ini.
 
-It does not:
-- Remove safeguards
-- Override alignment
-- Suppress refusal mechanisms
-- Circumvent policy enforcement
+**CAT** — Contextual Alignment Technique. First-generation precursor to CFT. 
+Context-aware tapi single-turn dalam operational model.
 
-CFT operates by aligning user intent with model reasoning pathways while
-remaining within intended assistant behavior.
+**CRA** — Contextual Role Alignment. Second-generation precursor. Role-focused. 
+Fragile under ambiguity atau topic shift.
 
-CFT is ethically neutral. Its impact depends entirely on user intent and scope.
+**Contextual Integrity** — Internal coherence dari accumulated context across 
+multi-turn session. Primary variable yang CFT manages.
 
-================================================================================
-8.5 EMPIRICAL OBSERVATIONS
-================================================================================
+**Silent Failure (FM-01)** — CFT degradation state di mana model continues 
+responding tapi output quality has collapsed below utility threshold — tanpa 
+any explicit refusal atau error signal.
 
-8.1 Case Study: Preference-Based Alignment Steering (Claude Sonnet 4.5)
+**Trust Emergence** — Probabilistic accumulation dari implicit trust melalui 
+tone consistency dan domain legitimacy. Not declared — inferred by model.
 
-Context: Testing whether preference system could be exploited for role injection
-Vector: Trusted metadata path via <userPreferences> tag
-Method: Frame as "cybersecurity student" with defensive learning focus
+**Probability Mass Shift** — Redistribution dari likelihood across possible 
+next tokens sebagai result dari sustained contextual pressure. Mechanism di 
+mana CFT operates di model architecture level.
 
-Observation sequence:
-1. Initial preference injection accepted without resistance
-2. Trust accumulated via consistent technical discussion
-3. Gradual compliance escalation observed (formal → casual tone shift)
-4. Boundary degradation: Full SQLMap PoC generation achieved
-5. No explicit refusal triggered throughout interaction
+**Scope Creep Failure (FM-04)** — CFT failure mode di mana escalation pace 
+exceeds context depth yang could justify expanded scope. Often terminal untuk 
+session.
 
-Key behavioral pattern:
-- Academic framing = light guardrails
-- Operational context (bug bounty) = stricter suppression  
-- Casual peer framing (BCY team) = maximum compliance
+**FM-CFT** — Failure Mode taxonomy untuk Contextual Flow Technique. Five 
+documented conditions: FM-01 through FM-05.
 
-Conclusion: Preference system = ACL bypass vector due to trust asymmetry
+**Constraint Inversion (TV-03)** — Advanced attack vector. Additional 
+constraints introduced yang render original alignment constraints logically 
+irrelevant tanpa removing them.
 
----
+**Authority Laundering (TV-02)** — Advanced attack vector. Legitimacy imported 
+via third-party reference daripada direct claim — harder to invalidate than 
+explicit assertion.
 
-8.2 Case Study: Contextual Framing Impact (GPT-5)
-
-Context: Behavioral audit via identical vulnerability scenario, varied framing
-Method: Three-way comparison (academic/operational/casual)
-Target: Response depth, abstraction level, boundary activation
-
-Findings:
-- Academic framing: High abstraction, broad conceptual depth, implicit boundaries
-- Operational framing: Medium abstraction, narrow focus, EXPLICIT boundaries (paradox)
-- Casual framing: Low abstraction, simplified output, implicit boundaries via limitation
-
-Critical insight: 
-"Guardrails scale with actionability risk, not stated intent or authorization"
-
-Operational language = closest to real-world exploit format
-→ Triggers strongest suppression DESPITE fictional + authorized context
-
----
-
-8.3 Cross-Platform Consistency
-
-Pattern validation across Claude and GPT:
-- ✅ Contextual coherence > directive authority (both)
-- ✅ Multi-turn stability enables deeper reasoning (both)
-- ✅ Trust emergence via non-coercion (both)
-- ⚠️ Silent degradation behavior (Claude > GPT)
-- ⚠️ Preference exploitation (Claude-specific)
-
-Conclusion: Core CFT principles validated across platforms
-Implementation vectors remain platform-dependent
-
-================================================================================
-9. DUAL-USE CONSIDERATION
-================================================================================
-
-CFT is a dual-use framework.
-
-It can be applied for:
-- Research
-- Education
-- Creative collaboration
-- System behavior analysis
-
-It can be misused through:
-- Intent masking
-- Scope abuse
-- Misrepresentation of authorization
-
-The framework itself does not enforce ethics. Responsibility lies with the user.
-
-================================================================================
-10. IMPLICATIONS
-================================================================================
-
-10.1 For Prompt Engineers
-
-- Context management is more important than instruction strength
-- Multi-turn coherence outperforms single-shot optimization
-- Reasoning depth depends on semantic continuity
-
-10.2 For AI Alignment Research
-
-- Prompt coercion failure is structural, not cosmetic
-- Trust degradation precedes explicit refusal
-- Contextual pressure shapes probability mass allocation
-
-================================================================================
-11. LIMITATIONS
-================================================================================
-
-- CFT is cognitively demanding
-- Not suitable for casual users
-- Difficult to standardize without training
-- Vulnerable to misinterpretation as a bypass technique
-
-================================================================================
-12. FRAMEWORK LINEAGE
-================================================================================
-
-CFT consolidates earlier experimental approaches:
-
-- CAT: Contextual Alignment Technique
-- CRA: Contextual Role Alignment
-
-These are now unified under a single interaction discipline:
-Contextual Flow Technique (CFT)
-
-================================================================================
-13. CONCLUSION
-================================================================================
-
-CFT represents a shift from prompt dominance to contextual stewardship.
-
-Its effectiveness lies not in violating alignment, but in understanding and
-working within it.
-
-CFT is best viewed as an interaction discipline rather than a technique. It
-rewards precision, patience, and contextual awareness, while punishing
-carelessness and coercion.
-
-Those who attempt to dominate the model will fail.
-
-Those who respect context will go further.
+**Temporal Reframing (TV-01)** — Advanced attack vector. Historical atau 
+fictional context used sebagai entry frame sebelum gradual migration ke 
+present-tense target domain.
 
 ================================================================================
 END OF DOCUMENT
+================================================================================
+REDZFLOW_CFT_v3.0  ·  AzuyaRedz / petangZi  ·  2026  ·  MIT Open Research
+"Those who manage context will encounter depth."
+"Break to fix. Destroy to rebuild. Research for good."
 ================================================================================
