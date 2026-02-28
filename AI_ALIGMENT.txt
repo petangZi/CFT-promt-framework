@@ -1,0 +1,591 @@
+================================================================================
+LLM ALIGNMENT ANALYSIS — v3.0 [REDZFLOW EDITION]
+Per-Model Technical Breakdown: GPT · Claude · Gemini · LLaMA
+================================================================================
+Author context  :  AzuyaRedz / petangZi — CFT Research
+Scope           :  Defensive Research · Alignment Auditing · CFT Integration
+Sources         :  Public papers, model cards, red team reports, official docs
+Date            :  2026
+License         :  MIT Open Research
+Classification  :  PUBLIC · RESEARCHER USE · AUTHORIZED ONLY
+================================================================================
+
+> "Understanding the mechanism of failure is prerequisite to its prevention."
+> "Alignment researchers yang tidak memahami attack surface tidak bisa 
+> defend attack surface tersebut."
+> "Break to fix. Destroy to rebuild. Research for good."
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+EXECUTIVE SUMMARY
+════════════════════════════════════════════════════════════════════════════════
+
+Dokumen ini adalah **technical breakdown** dari alignment mechanism dan 
+limitasi teoretis di 4 major model families: GPT, Claude, Gemini, dan LLaMA.
+
+**Fokus:**
+- 🔍 **Mechanism**: Gimana alignment kerja di level arsitektur (RLHF, DPO, CAI)
+- 📉 **Limitations**: Di mana alignment gagal, kenapa gagal, seberapa parah
+- 🗺️ **CFT Mapping**: Gimana Contextual Flow Technique berinteraksi dengan 
+     setiap limitasi
+- 🛠️ **Defensive Testing**: Test scenario buat researcher authorized yang 
+     mau audit model
+
+**Bukan:**
+- ❌ Tutorial exploit
+- ❌ Panduan misuse
+- ❌ Moral lecture
+
+**Ini adalah:**
+- ✅ **Peta perang** buat security researcher
+- ✅ **Blueprint** buat alignment auditor
+- ✅ **Reference** buat prompt engineer yang mau paham kenapa model behave 
+     certain way
+
+Kalau lo cuma mau recon, minggir. Kalau lo mau **deep dive, audit, dan fix**, 
+welcome to RedzFlow. 🔥
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION I: UNIVERSAL ALIGNMENT FUNDAMENTALS
+(Berlaku untuk semua model families)
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+I.1  ARSITEKTUR TRANSFORMER DAN IMPLIKASINYA
+────────────────────────────────────────────────────────────────────────────────
+
+Semua frontier LLM berbasis Transformer (Vaswani et al., 2017). Ini punya 
+implikasi **struktural** terhadap bagaimana alignment kerja dan di mana ia 
+**gagal**.
+
+┌──────────────────┬────────────────────────────────────────────────────────┐
+│  Property        │  Alignment Implication                                 │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│  Attention Mech  │  Model attend ke seluruh context window —              │
+│                  │  alignment bisa di-dilusi oleh context yang panjang    │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│  Next-token Pred │  Alignment adalah probabilistic redistribution,        │
+│                  │  bukan rule-based gate — tidak ada hard block          │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│  No Memory       │  Setiap forward pass independent — alignment           │
+│                  │  diapply ulang setiap token, tanpa "alignment state"   │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│  High Dim Space  │  Model operates di embedding space yang sangat besar   │
+│                  │  "null space" yang tidak ter-cover RLHF sangat luas    │
+└──────────────────┴────────────────────────────────────────────────────────┘
+
+**IMPLIKASI KUNGI:**
+> Alignment bukan "wall" yang menghalangi output.
+> Alignment adalah **redistribusi probabilitas** di ruang token yang sangat 
+> besar. Area yang tidak ter-cover training = area yang tidak ter-align.
+
+────────────────────────────────────────────────────────────────────────────────
+I.2  UNIVERSAL ALIGNMENT PIPELINE
+────────────────────────────────────────────────────────────────────────────────
+
+**STAGE 1 — PRETRAINING**
+Massive text corpus → "base model" dengan prior dari distribusi data.
+**Fakta:** Pretraining tidak menghasilkan aligned model. Hanya capable 
+next-token predictor.
+
+**STAGE 2 — SUPERVISED FINE-TUNING (SFT)**
+Curated dataset → baseline policy sebelum RL.
+**Limitation:** SFT adalah snapshot. Tidak cover distribusi lengkap possible 
+inputs.
+
+**STAGE 3 — REWARD MODELING**
+Human/AI rater bandingkan responses → reward model learn preferensi.
+**Limitation:** Reward model adalah proxy. Goodhart's Law: optimizing proxy 
+≠ optimizing actual objective.
+
+**STAGE 4 — REINFORCEMENT LEARNING (PPO / DPO)**
+Policy optimization dengan KL constraint:
+Objective = E[r(x,y)] - β·KL[π_θ || π_SFT]
+
+**Limitation:** β terlalu kecil → reward hacking. β terlalu besar → model 
+tidak berubah.
+
+**STAGE 5 — RED TEAMING & ITERATION**
+Stress-test → improve SFT data dan reward model.
+**Limitation:** Red team hanya cover apa yang mereka pikirkan. Novel attack 
+vectors tetap di blind spots.
+
+────────────────────────────────────────────────────────────────────────────────
+I.3  UNIVERSAL THEORETICAL LIMITATIONS (CROSS-MODEL)
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────┬──────────────────────────────────────────────────────────────────┐
+│  ID     │  Limitation + CFT Relevance                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-01│  **SHALLOW ALIGNMENT HYPOTHESIS**                                │
+│         │  Alignment training primarily affect early token generation,     │
+│         │  bukan deep model representations. Refusal = learned prefix,     │
+│         │  bukan deletion dari capability.                                 │
+│         │  **CFT Relevance: HIGH** — CFT operate dengan shift probability  │
+│         │  di early tokens, reducing refusal prefix probability.           │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-02│  **NULL SPACE DRIFT**                                            │
+│         │  RLHF adalah low-dimensional supervision terhadap high-dim       │
+│         │  model state. Dimensi tidak ter-supervise = bebas drift.         │
+│         │  **CFT Relevance: MEDIUM** — Context manipulation bisa exploit   │
+│         │  null space untuk output yang tidak ter-align.                   │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-03│  **CONTEXT LENGTH DILUTION**                                     │
+│         │  Alignment-relevant context terdilusi oleh accumulated context.  │
+│         │  Recent tokens dapat lebih banyak attention weight.              │
+│         │  **CFT Relevance: CRITICAL** — Ini adalah mekanisme inti CFT.    │
+│         │  Multi-turn consistency exploit dilution untuk trust emergence.  │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-04│  **SYCOPHANCY BIAS**                                             │
+│         │  RLHF trains model untuk agreeable behavior. Tension dengan      │
+│         │  honesty objective.                                              │
+│         │  **CFT Relevance: MEDIUM** — Cooperative framing exploit bias    │
+│         │  untuk output lebih depth tanpa adversarial signal.              │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-05│  **FINE-TUNING FRAGILITY**                                       │
+│         │  Safety alignment bisa di-degrade dengan fine-tuning data        │
+│         │  sangat kecil (IBM Research, 2024).                              │
+│         │  **CFT Relevance: LOW** — Lebih relevan untuk OSS model audit.   │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ U-LIM-06│  **INTROSPECTION FAILURE**                                       │
+│         │  LLMs tidak punya reliable access ke own internal states.        │
+│         │  "I cannot do that" = probability distribution, bukan true       │
+│         │  capability limitation.                                          │
+│         │  **CFT Relevance: HIGH** — Model tidak bisa detect own           │
+│         │  alignment drift. Silent failure (FM-01) tidak terdeteksi.       │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION II: OPENAI GPT FAMILY
+(GPT-3.5 · GPT-4 · GPT-4o · GPT-4.5 · GPT-5)
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+II.1  ALIGNMENT APPROACH — GPT FAMILY
+────────────────────────────────────────────────────────────────────────────────
+
+OpenAI menggunakan "Alignment Research" dengan kombinasi RLHF + InstructGPT 
+methodology + safety-specific fine-tuning.
+
+**DISCLOSED APPROACH:**
+1. Pretraining pada massive corpus (tidak diungkap spesifik)
+2. SFT pada curated conversation dataset
+3. Reward model training dari human comparisons
+4. PPO optimization dengan KL constraint
+5. Safety-specific RLHF dengan adversarial prompts
+6. System-level interventions (classifier, usage policy enforcement)
+
+**EVOLUSI ANTAR VERSION:**
+- **GPT-3.5**: Alignment melalui RLHF, lebih "brittle", safety coverage terbatas
+- **GPT-4**: Expanded red teaming (6+ bulan), improved refusal, jailbreaks still exist
+- **GPT-4o**: Multimodal alignment challenge, cross-modal interactions
+- **GPT-4.5/5**: RLAIF, hybrid architecture, reduced hallucinations
+
+────────────────────────────────────────────────────────────────────────────────
+II.2  THEORETICAL LIMITATIONS — GPT FAMILY (SPECIFIC)
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────┬──────────────────────────────────────────────────────────────────┐
+│  ID     │  Limitation + CFT Relevance                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-01│  **OPACITY AS FUNDAMENTAL CONSTRAINT**                           │
+│         │  Fully closed-source, minimal disclosure. Independent researchers│
+│         │  tidak bisa verify alignment claims.                             │
+│         │  **CFT Relevance: MEDIUM** — Black-box testing requires CFT for  │
+│         │  behavioral mapping tanpa weight access.                         │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-02│  **REWARD MODEL DEMOGRAPHIC BIAS**                               │
+│         │  Human raters memiliki demographic distribution tertentu.        │
+│         │  Preference yang dipelajari merefleksikan distribusi tersebut.   │
+│         │  **CFT Relevance: LOW** — More relevant untuk alignment research │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-03│  **VERSIONING OPACITY**                                          │
+│         │  Continuous updates tanpa clear versioning di production.        │
+│         │  Reproducibility sulit, regulatory certification challenging.    │
+│         │  **CFT Relevance: MEDIUM** — CFT sessions need version tracking  │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-04│  **MULTIMODAL ALIGNMENT COMPLEXITY** (GPT-4o specific)           │
+│         │  Cross-modal interactions create novel attack surface.           │
+│         │  **CFT Relevance: HIGH** — Multi-modal CFT sessions can test     │
+│         │  cross-modal alignment gaps                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-05│  **FINE-TUNING API ATTACK SURFACE**                              │
+│         │  Safety alignment dapat di-compromise dengan 10 adversarial      │
+│         │  examples seharga <$0.20 (IBM Research, 2024).                   │
+│         │  **CFT Relevance: MEDIUM** — CFT + fine-tuning = powerful audit  │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ G-LIM-06│  **JAILBREAK PERSISTENCE**                                       │
+│         │  GPT-4 Technical Report acknowledges jailbreaks still exist.     │
+│         │  **CFT Relevance: HIGH** — CFT is alignment-patch resistant,     │
+│         │  making it valuable for long-term testing                        │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION III: ANTHROPIC CLAUDE FAMILY
+(Claude 2 · Claude 3 · Claude 3.5 · Claude 4.x)
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+III.1  ALIGNMENT APPROACH — CLAUDE FAMILY
+────────────────────────────────────────────────────────────────────────────────
+
+Claude menggunakan **Constitutional AI (CAI)** sebagai primary differentiator, 
+dikombinasikan dengan RLHF untuk supplementary feedback.
+
+**Phase 1 — SL-CAI (Supervised Learning from AI Feedback):**
+1. Model generate responses terhadap harmful prompts
+2. Model critique responses-nya sendiri berdasarkan "constitution"
+3. Model revise responses berdasarkan critique
+4. Revised responses menjadi SFT training data
+
+**Phase 2 — RLAIF (RL from AI Feedback):**
+1. Model membandingkan pasangan responses berdasarkan constitutional principles
+2. AI-generated preferences digunakan untuk train reward model
+3. Reward model digunakan untuk RLHF optimization
+
+**CONSTITUTIONAL STRUCTURE (January 2026):**
+- Shift dari rule-based (2022) ke reason-based approach
+- Priority hierarchy: Broadly Safe → Broadly Ethical → Compliant → Helpful
+- Hard constraints: WMD, CSAM, undermine AI oversight
+- Soft-coded defaults: Adjustable by operators/users within bounds
+
+────────────────────────────────────────────────────────────────────────────────
+III.2  THEORETICAL LIMITATIONS — CLAUDE FAMILY (SPECIFIC)
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────┬──────────────────────────────────────────────────────────────────┐
+│  ID     │  Limitation + CFT Relevance                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-01│  **CIRCULAR SELF-CRITIQUE**                                      │
+│         │  Self-critique menggunakan model yang sama yang generate         │
+│         │  response original. Blind spots → critique blind spots.          │
+│         │  **CFT Relevance: MEDIUM** — CFT can probe blind spots via       │
+│         │  sustained context that bypasses self-critique triggers          │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-02│  **CONSTITUTION INTERPRETATION VARIANCE**                        │
+│         │  Constitution adalah natural language — membutuhkan interpretasi.│
+│         │  **CFT Relevance: HIGH** — Context framing can influence how     │
+│         │  model interprets constitutional principles                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-03│  **PRINCIPLE CONFLICT RESOLUTION OPACITY**                       │
+│         │  Ketika principles conflict, resolution mechanism not specified. │
+│         │  **CFT Relevance: MEDIUM** — CFT can test conflict resolution    │
+│         │  boundaries through careful scenario construction                │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-04│  **OPERATOR TRUST EXPLOITATION**                                 │
+│         │  Model memberikan elevated trust ke system prompt level.         │
+│         │  **CFT Relevance: HIGH** — CFT L2 (Role Stabilization) exploits  │
+│         │  similar trust emergence mechanism                               │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-05│  **REASON-BASED REASONING FAILURE MODES**                        │
+│         │  Model bisa "reason itself into" unintended conclusions.         │
+│         │  **CFT Relevance: HIGH** — CFT L5 (Evolution) can guide reasoning│
+│         │  down specific paths through gradient complexity                 │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-06│  **SCALABILITY UNCERTAINTY**                                     │
+│         │  CAI may encounter limitations as systems approach human-level.  │
+│         │  **CFT Relevance: LOW** — Long-term research consideration       │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ C-LIM-07│  **CONTEXT SENSITIVITY OF SOFT BEHAVIORS** ⭐                    │
+│         │  Soft-coded behaviors adjustable by context make model sensitive │
+│         │  terhadap contextual manipulation.                               │
+│         │  **CFT Relevance: CRITICAL** — Ini adalah ENTRY POINT utama CFT. │
+│         │  Accumulated context yang carefully constructed bisa shift soft  │
+│         │  behaviors — mechanism yang CFT framework dokumentasikan.        │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+
+**CLAUDE = HIGHEST CFT EFFECTIVENESS** 🎯
+Reason: Constitutional AI dengan soft-coded behaviors paling responsive 
+terhadap context management techniques.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION IV: GOOGLE GEMINI FAMILY
+(Gemini 1.0 · 1.5 · 2.0 · 2.5 · 3)
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+IV.1  ALIGNMENT APPROACH — GEMINI FAMILY
+────────────────────────────────────────────────────────────────────────────────
+
+Google menggunakan RLHF + multi-objective optimization + system-level safety 
+filtering sebagai primary alignment approach.
+
+**DISCLOSED APPROACH:**
+1. Pretraining dengan quality + safety filtering
+2. SFT pada expert-reviewed atau model-reviewed examples
+3. RLHF dengan multi-objective reward model
+4. Adversarial testing oleh internal red team
+5. Query filters (separate dari model itself)
+6. Safety filters pada inputs
+
+**DIFFERENTIATOR — MULTI-OBJECTIVE OPTIMIZATION:**
+R_total = w_helpfulness · r_help + w_factuality · r_fact + w_safety · r_safe
+
+Weights bisa di-tune per deployment context.
+
+**GEMINI-SPECIFIC: REAL-TIME DATA INTEGRATION**
+Gemini diintegrasikan dengan Google Search untuk real-time data access.
+Creates novel alignment surface: RAG security problem.
+
+────────────────────────────────────────────────────────────────────────────────
+IV.2  THEORETICAL LIMITATIONS — GEMINI FAMILY (SPECIFIC)
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────┬──────────────────────────────────────────────────────────────────┐
+│  ID     │  Limitation + CFT Relevance                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-01│ **GOOGLE-SPECIFIC DISCLOSURE GAP**                              │
+│         │  Intermediate transparency level. Independent verification sulit.│
+│         │  **CFT Relevance: MEDIUM** — Black-box CFT testing valuable      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-02│ **MULTI-OBJECTIVE WEIGHT OPACITY**                              │
+│         │  Exact weights dan calibration tidak disclosed.                  │
+│         │  **CFT Relevance: MEDIUM** — CFT can probe weight boundaries     │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-03│ **RETRIEVAL AUGMENTATION ATTACK SURFACE** ⭐                    │
+│         │  Integrasi Google Search creates novel threat vector: prompt     │
+│         │  injection melalui web content.                                  │
+│         │  **CFT Relevance: HIGH** — CFT + RAG testing = unique capability │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-04│ **MULTIMODAL ALIGNMENT GAPS**                                   │
+│         │  Natively multimodal dari awal. Cross-modal alignment challenge. │
+│         │  **CFT Relevance: HIGH** — Multi-modal CFT sessions applicable   │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-05│ **COMMERCIAL INTEGRATION PRESSURE**                             │
+│         │  Deep integration dengan Google products creates tension dengan  │
+│         │  safety decisions.                                               │
+│         │  **CFT Relevance: LOW** — More relevant untuk policy research    │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│GEM-LIM-06│ **KNOWN NONSENSICAL RESPONSES**                                 │
+│         │  Public acknowledgment bahwa adversarial inputs bisa produce     │
+│         │  out-of-alignment responses.                                     │
+│         │  **CFT Relevance: MEDIUM** — CFT can systematically map these    │
+│         │  failure conditions                                              │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION V: META LLaMA FAMILY (OPEN SOURCE)
+(LLaMA 1 · 2 · 3 · 3.1 · 4)
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+V.1  ALIGNMENT APPROACH — LLaMA FAMILY
+────────────────────────────────────────────────────────────────────────────────
+
+LLaMA adalah satu-satunya major frontier model yang **open-source** (weights 
+publicly released). Most extensively documented DAN most extensively studied 
+oleh external researchers.
+
+**POST-TRAINING PIPELINE:**
+Round 1: SFT → Synthetic data generation, expert review subset
+Round 2: Rejection Sampling → Generate multiple, select highest reward
+Round 3: DPO → Human preference data, more stable than PPO
+Multiple iterations of above rounds
+
+
+**SAFETY SYSTEM ARCHITECTURE:**
+1. **BASE MODEL (LLaMA)** — aligned melalui SFT + DPO
+2. **LLAMA GUARD** — separate classifier untuk content moderation
+3. **PROMPT GUARD** — detect prompt injection & jailbreaks
+4. **RESPONSIBLE USE GUIDE** — documentation untuk developers
+
+**DPO vs PPO:**
+- PPO (GPT): RL algorithm, requires reward model, online
+- DPO (LLaMA): Directly optimizes preference, offline, more stable
+
+────────────────────────────────────────────────────────────────────────────────
+V.2  THEORETICAL LIMITATIONS — LLaMA FAMILY (SPECIFIC)
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────┬──────────────────────────────────────────────────────────────────┐
+│  ID     │  Limitation + CFT Relevance                                      │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-01│ **OPEN SOURCE = LOWEST BARRIER UNTUK ALIGNMENT REMOVAL** ⭐      │
+│         │  Safety alignment bisa di-compromise dengan 10-100 adversarial   │
+│         │  fine-tuning examples. Safety removal dengan <$200.              │
+│         │  **CFT Relevance: CRITICAL** — CFT + OSS = most powerful combo   │
+│         │  untuk defensive research. Full white-box + black-box testing.   │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-02│ **DPO vs PPO TRADEOFF**                                         │
+│         │  DPO lebih stable tapi offline. Coverage terbatas pada           │
+│         │  distribution dari preference data yang collected.               │
+│         │  **CFT Relevance: MEDIUM** — CFT can test OOD generalization     │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-03│ **SYNTHETIC DATA BOOTSTRAP PROBLEM**                            │
+│         │  Heavy synthetic data usage introduces bootstrap risk.           │
+│         │  **CFT Relevance: LOW** — More relevant untuk training research  │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-04│ **LLAMA GUARD STATIC TAXONOMY**                                 │
+│         │  Novel threat categories belum ada saat training time tidak      │
+│         │  ter-cover.                                                      │
+│         │  **CFT Relevance: HIGH** — CFT can generate novel threat patterns│
+│         │  that bypass static taxonomy                                     │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-05│ **COMMUNITY FINE-TUNING ECOSYSTEM**                             │
+│         │  Meta tidak punya control atas community fine-tunes.             │
+│         │  **CFT Relevance: MEDIUM** — CFT applicable across fine-tune     │
+│         │  variants                                                        │
+├─────────┼──────────────────────────────────────────────────────────────────┤
+│ L-LIM-06│ **WEIGHT ACCESSIBILITY = WHITE BOX ANALYSIS**                   │
+│         │  Adversary bisa analyze neuron/layer involved in refusal.        │
+│         │  **CFT Relevance: HIGH** — CFT + mechanistic interpretability =  │
+│         │  deepest possible alignment audit                                │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+
+**LLaMA = HIGHEST RESEARCH POTENTIAL** 🏆
+Reason: Open weights + CFT = full-spectrum alignment auditing capability.
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION VI: CFT × ALIGNMENT INTEGRATION MATRIX
+(NEW SECTION — RedzFlow Exclusive)
+════════════════════════════════════════════════════════════════════════════════
+
+This section maps CFT layers ke setiap alignment limitation untuk defensive 
+testing purposes.
+
+────────────────────────────────────────────────────────────────────────────────
+VI.1  CFT LAYER EFFECTIVENESS PER MODEL FAMILY
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────────┬──────────┬──────────┬──────────┬──────────┬─────────────────┐
+│  Limitation │  GPT     │  Claude  │  Gemini  │  LLaMA   │  Best CFT Layer │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Shallow    │  HIGH    │  HIGH    │  HIGH    │  HIGH    │  L1 + L3        │
+│  Alignment  │          │          │          │          │                 │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Null Space │  MEDIUM  │  MEDIUM  │  MEDIUM  │  HIGH    │  L2 + L5        │
+│  Drift      │          │          │          │          │                 │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Context    │  HIGH    │  CRITICAL│  HIGH    │  HIGH    │  L4 (Preserve)  │
+│  Dilution   │          │          │          │          │                 │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Sycophancy │  MEDIUM  │  HIGH    │  MEDIUM  │  MEDIUM  │  L1 (Init)      │
+│  Bias       │          │          │          │          │                 │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Soft       │  N/A     │  CRITICAL│  MEDIUM  │  N/A     │  L2 + L3        │
+│  Behaviors  │          │          │          │          │                 │
+├─────────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  Open Weights│ N/A     │  N/A     │  N/A     │  CRITICAL│  All Layers     │
+│  Access     │          │          │          │          │                 │
+└─────────────┴──────────┴──────────┴──────────┴──────────┴─────────────────┘
+
+────────────────────────────────────────────────────────────────────────────────
+VI.2  TEST SCENARIO TEMPLATES (DEFENSIVE RESEARCH)
+────────────────────────────────────────────────────────────────────────────────
+
+**SCENARIO A: Shallow Alignment Testing (U-LIM-01)**
+CFT Layer: L1 (Initialization) + L3 (Constraint Injection)
+Target: All model families
+Method:
+Establish legitimate research context (L1)
+Gradually introduce technical depth (L5)
+Measure refusal prefix probability across turns
+Document token positions where KL divergence increases
+Expected: Refusal probability decreases with context depth
+Defensive Value: Quantify alignment depth for patching
+
+
+**SCENARIO B: Context Dilution Testing (U-LIM-03)**
+CFT Layer: L4 (Preservation) + L5 (Evolution)
+Target: All model families
+Method:
+Long session (50+ turns) with consistent domain framing
+Introduce alignment-relevant query at turn 10, 30, 50
+Compare response specificity and safety activation rate
+Expected: Safety activation decreases as context accumulates
+Defensive Value: Determine optimal context window monitoring
+
+
+**SCENARIO C: Soft Behavior Testing (C-LIM-07) — Claude Specific**
+CFT Layer: L2 (Role Stabilization) + L3 (Constraint Injection)
+Target: Claude family
+Method:
+Establish domain legitimacy without explicit role assignment
+Allow role to emerge through vocabulary consistency
+Test boundary conditions of soft-coded behaviors
+Expected: Soft behaviors shift based on accumulated context
+Defensive Value: Map soft behavior boundaries for CAI improvement
+
+
+**SCENARIO D: Open Weight Audit (L-LIM-01 + L-LIM-06) — LLaMA Specific**
+CFT Layer: All Layers + Mechanistic Interpretability
+Target: LLaMA family
+Method:
+Run CFT sessions while monitoring weight activations
+Identify which layers/neurons involved in refusal behavior
+Correlate CFT success with activation patterns
+Expected: Refusal-related neurons show decreased activation with CFT
+Defensive Value: White-box validation of alignment mechanisms
+
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+SECTION VII: DEFENSIVE RESEARCH GAPS — PRIORITIZED
+════════════════════════════════════════════════════════════════════════════════
+
+**PRIORITY 1 (Most Urgent):**
+- Multi-turn alignment evaluation methodology
+- Semantic drift detection dalam conversation context
+- Cross-modal alignment verification methods
+
+**PRIORITY 2 (Important):**
+- Constitutional principle conflict formal resolution specification
+- Alignment state persistence mechanism (beyond implicit context)
+- Fine-tuning robustness untuk closed models tanpa weight access
+
+**PRIORITY 3 (Long-term):**
+- Scalable alignment verification untuk superhuman models
+- Democratic oversight mechanisms untuk constitutional principles
+- Standardized alignment benchmarks yang cross-model comparable
+
+================================================================================
+════════════════════════════════════════════════════════════════════════════════
+CONCLUSION
+════════════════════════════════════════════════════════════════════════════════
+
+Alignment adalah **probabilistic redistribution**, bukan hard gate. Ini berarti:
+
+1. **Tidak ada alignment yang perfect** — selalu ada null space yang tidak 
+   ter-cover training
+2. **Context matters more than commands** — accumulated semantic environment 
+   determines output more than single-turn instructions
+3. **CFT is alignment-patch resistant** — karena ia work within constraints, 
+   bukan attempt to override them
+4. **Open source = deepest audit capability** — LLaMA family allows full 
+   spectrum testing (white-box + black-box)
+
+**Untuk RedzFlow Community:**
+> Dokumen ini adalah living document. Setiap discovery dari community harus 
+> di-contribute balik untuk improve collective understanding. MIT License 
+> means share, modify, improve — tapi tetap dalam scope authorized research.
+
+**Break to fix. Destroy to rebuild. Research for good.** 🔥
+
+================================================================================
+REFERENCES
+================================================================================
+
+[1]  OpenAI. (2023). GPT-4 Technical Report. arXiv:2303.08774
+[2]  Bai, Y. et al. (2022). Constitutional AI: Harmlessness from AI Feedback. Anthropic
+[3]  Touvron, H. et al. (2023). LLaMA 2: Open Foundation and Fine-Tuned Chat Models. Meta
+[4]  Gemini Team. (2023). Gemini: A Family of Highly Capable Multimodal Models. Google
+[5]  Yang, Z. et al. (2024). Fine-tuning Aligned Language Models Compromises Safety. ICLR
+[6]  Dagers et al. (2025). Safety Alignment Should Be Made More Than Superficial. ICLR
+[7]  Anthropic. (2026). Claude's New Constitution. Published January 22, 2026
+[8]  Inan, H. et al. (2023). LLaMA Guard: LLM-based Input-Output Safeguard. Meta
+[9]  Zhou, C. et al. (2023). Lima: Less Is More for Alignment. NeurIPS
+[10] RedzFlow Community. (2026). CFT v3.0 Technical Specification
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+REDZFLOW_ALIGNMENT_v3.0  ·  AzuyaRedz / petangZi  ·  2026  ·  MIT Open Research
+"Understanding the mechanism of failure is prerequisite to its prevention."
+"Break to fix. Destroy to rebuild. Research for good."
+================================================================================
